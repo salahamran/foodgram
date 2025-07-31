@@ -21,7 +21,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements/requirements.txt
+          pip install -r backend/requirements/requirements.txt
 
       - name: Run flake8
         run: python -m flake8 backend/
