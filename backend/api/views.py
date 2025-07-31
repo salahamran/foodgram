@@ -1,11 +1,15 @@
 import json
 
-from django.db.models import F, Sum
-from django.http import Http404, HttpResponse
+from django.db.models import F
+from django.db.models import Sum
+from django.http import Http404
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.serializers import SetPasswordSerializer
-from rest_framework import permissions, status, viewsets
+from rest_framework import permissions
+from rest_framework import status
+from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -13,19 +17,22 @@ from rest_framework.views import APIView
 
 from api.filters import RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
-from api.serializers import (
-    AvatarSerializer,
-    IngredientSerializer,
-    RecipeReadSerializer,
-    RecipeShortSerializer,
-    RecipeWriteSerializer,
-    SubscriptionSerializer,
-    TagSerializer,
-    UserCreateSerializer,
-    UserSerializer,
-)
-from recipes.models import Favorite, Ingredient, Recipe, ShoppingCart, Tag
-from users.models import Subscription, User
+from api.serializers import AvatarSerializer
+from api.serializers import IngredientSerializer
+from api.serializers import RecipeReadSerializer
+from api.serializers import RecipeShortSerializer
+from api.serializers import RecipeWriteSerializer
+from api.serializers import SubscriptionSerializer
+from api.serializers import TagSerializer
+from api.serializers import UserCreateSerializer
+from api.serializers import UserSerializer
+from recipes.models import Favorite
+from recipes.models import Ingredient
+from recipes.models import Recipe
+from recipes.models import ShoppingCart
+from recipes.models import Tag
+from users.models import Subscription
+from users.models import User
 
 
 class UserViewSet(viewsets.ModelViewSet):

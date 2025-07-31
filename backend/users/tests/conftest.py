@@ -1,9 +1,11 @@
 import pytest
-
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
-from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag
+from recipes.models import Ingredient
+from recipes.models import Recipe
+from recipes.models import RecipeIngredient
+from recipes.models import Tag
 
 User = get_user_model()
 

@@ -1,17 +1,14 @@
 import pytest
-
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
 
-from recipes.models import (
-    Favorite,
-    Ingredient,
-    Recipe,
-    RecipeIngredient,
-    ShoppingCart,
-    Tag,
-)
+from recipes.models import Favorite
+from recipes.models import Ingredient
+from recipes.models import Recipe
+from recipes.models import RecipeIngredient
+from recipes.models import ShoppingCart
+from recipes.models import Tag
 from users.models import User
 
 
