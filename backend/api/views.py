@@ -1,3 +1,5 @@
+import json
+
 from django.db.models import F, Sum
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
@@ -247,8 +249,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         content = "Shopping List:\n\n"
         for i, item in enumerate(ingredients, 1):
-            content += f"{i}. {item['name']} ({item['unit']}) - {item['total_amount']}\n"
-
+            content += (
+                f"{i}. {item['name']} "
+                f"({item['unit']}) - "
+                f"{item['total_amount']}\n"
+            )
         response = HttpResponse(content, content_type='text/plain')
         response[
             'Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
