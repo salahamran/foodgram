@@ -2,10 +2,10 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
-from users.models import User
 
 from recipes.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                             ShoppingCart, Tag)
+from users.models import User
 
 
 @pytest.mark.django_db
@@ -31,7 +31,8 @@ def test_recipe_creation_and_str():
         last_name='Cook',
         password='12345'
     )
-    image = SimpleUploadedFile('dish.jpg', b'image-data', content_type='image/jpeg')
+    image = SimpleUploadedFile('dish.jpg',
+                               b'image-data', content_type='image/jpeg')
     recipe = Recipe.objects.create(
         author=user,
         name='Pasta',
@@ -83,7 +84,8 @@ def test_recipe_ingredient_unique_constraint():
     )
     RecipeIngredient.objects.create(recipe=recipe, ingredient=ing, amount=1)
     with pytest.raises(IntegrityError):
-        RecipeIngredient.objects.create(recipe=recipe, ingredient=ing, amount=2)
+        RecipeIngredient.objects.create(recipe=recipe,
+                                        ingredient=ing, amount=2)
 
 
 @pytest.mark.django_db

@@ -1,8 +1,9 @@
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from users.models import User, Subscription
+from django.db import IntegrityError
+
+from users.models import Subscription, User
 
 
 @pytest.mark.django_db

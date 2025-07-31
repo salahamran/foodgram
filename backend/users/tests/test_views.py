@@ -20,10 +20,11 @@ def test_create_recipe(auth_client, tag, ingredient):
         'ingredients': [{'id': ingredient.id, 'amount': 10}],
         'tags': [tag.id],
         'image': (
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAgMAAABieywa'
-            'AAAACVBMVEUAAAD///9fX1/S0ecCAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAACklEQVQImWNo'
-            'AAAAggCByxOyYQAAAABJRU5ErkJggg=='
-        )
+            'data:image/png;base64,'
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAgMAAABieywa'
+            'AAAACVBMVEUAAAD///9fX1/S0ecCAAAACXBIWXMAAA7EAAAOxAGVKw4b'
+            'AAAACklEQVQImWNoAAAAggCByxOyYQAAAABJRU5ErkJggg=='
+        ),
     }
     response = auth_client.post(url, data, format='json')
     assert response.status_code == 201

@@ -12,10 +12,12 @@ def test_invalid_ingredient(auth_client, tag):
         'ingredients': [{'id': 999, 'amount': 5}],
         'tags': [tag.id],
         'image': (
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAgMAAABieywa'
-            'AAAACVBMVEUAAAD///9fX1/S0ecCAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAACklEQVQImWNo'
-            'AAAAggCByxOyYQAAAABJRU5ErkJggg=='
-        )
+            'data:image/png;base64,'
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAgMAAABieywa'
+            'AAAACVBMVEUAAAD///9fX1/S0ecCAAAACXBIWXMAAA7EAAAOxAGVKw4b'
+            'AAAACklEQVQImWNoAAAAggCByxOyYQAAAABJRU5ErkJggg=='
+        ),
+
     }
     response = auth_client.post(url, data, format='json')
     assert response.status_code == 400
@@ -31,9 +33,10 @@ def test_recipe_with_zero_amount(auth_client, ingredient, tag):
         'ingredients': [{'id': ingredient.id, 'amount': 0}],
         'tags': [tag.id],
         'image': (
-            'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAgMAAABieywa'
-            'AAAACVBMVEUAAAD///9fX1/S0ecCAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAACklEQVQImWNo'
-            'AAAAggCByxOyYQAAAABJRU5ErkJggg=='
+            'data:image/png;base64,'
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAgMAAABieywa'
+            'AAAACVBMVEUAAAD///9fX1/S0ecCAAAACXBIWXMAAA7EAAAOxAGVKw4b'
+            'AAAACklEQVQImWNoAAAAggCByxOyYQAAAABJRU5ErkJggg=='
         )
     }
     response = auth_client.post(url, data, format='json')
