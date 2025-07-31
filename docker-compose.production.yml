@@ -1,0 +1,35 @@
+version: '3.9'
+
+volumes:
+  pg_data:
+  static:
+  media:
+
+services:
+  db:
+    image: postgres:14
+    env_file: .env
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+  backend:
+    image: salahamran/foodgram_backend
+    env_file: .env
+
+    volumes:
+      - static:/backend_static
+      - media:/media
+  frontend:
+    env_file: .env
+    image: salahamran/foodgram_frontend
+    command: cp -r /app/build/. /staticfiles/
+    volumes:
+      - static:/staticfiles
+  gateway:
+    image: salahamran/foodgram_gateway
+    env_file: .env
+    ports:
+      - 7000:80
+    volumes:
+      - static:/staticfiles
+      - media:/media
+
