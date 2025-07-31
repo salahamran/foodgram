@@ -1,10 +1,9 @@
+from api.utils import get_is_favorited, get_is_in_shopping_cart
 from django.contrib.auth.password_validation import validate_password
 from django.core.validators import RegexValidator
 from drf_extra_fields.fields import Base64ImageField
-from rest_framework import serializers
-
-from api.utils import get_is_favorited, get_is_in_shopping_cart
 from recipes.models import Ingredient, Recipe, RecipeIngredient, Tag
+from rest_framework import serializers
 from users.models import Subscription, User
 
 
