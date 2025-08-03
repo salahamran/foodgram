@@ -1,9 +1,6 @@
-import json
-
 from django.db.models import Count
 from django.db.models import F
 from django.db.models import Sum
-from django.http import Http404
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -211,7 +208,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             serializer = RecipeShortSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        deleted, _ = ShoppingCart.objects.filter(user=user, recipe=recipe).delete()
+        deleted, _ = ShoppingCart.objects.filter(
+            user=user, recipe=recipe).delete()
         if deleted == 0:
             return Response(
                 {'errors': 'Not in shopping cart.'},
@@ -235,7 +233,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         content = self._generate_shopping_list_content(ingredients)
         response = HttpResponse(content, content_type='text/plain')
-        response['Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
+        response[
+            'Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
         return response
 
     def _generate_shopping_list_content(self, ingredients):
