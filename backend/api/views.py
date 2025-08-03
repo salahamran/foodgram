@@ -1,5 +1,6 @@
 import json
 
+from django.db.models import Count
 from django.db.models import F
 from django.db.models import Sum
 from django.http import Http404
@@ -55,12 +56,6 @@ class UserViewSet(viewsets.ModelViewSet):
         author = get_object_or_404(User, pk=id)
         user = request.user
 
-        if user.id == author.id:
-            return Response(
-                {"errors": "You cannot subscribe to yourself"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
         if request.method == 'POST':
             if Subscription.objects.filter(user=user, author=author).exists():
                 return Response(
@@ -73,29 +68,30 @@ class UserViewSet(viewsets.ModelViewSet):
             recipes_limit = request.query_params.get('recipes_limit')
             if recipes_limit and recipes_limit.isdigit():
                 context['recipes_limit'] = int(recipes_limit)
-            serializer = SubscriptionSerializer(author, context=context)
+            serializer = SubscriptionSerializer(
+                author, context={'request': request, 'author': author})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        # DELETE
-        subscription = Subscription.objects.filter(user=user, author=author)
-        if not subscription.exists():
-            return Response(
-                {"errors": "Subscription not found"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        subscription.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        deleted, _ = Subscription.objects.filter(
+            user=user, author=author).delete()
+        if deleted == 0:
+            return Response({"errors": "Subscription not found"}, status=400)
+        return Response(status=204)
 
     @action(detail=False, methods=['get'],
             permission_classes=[permissions.IsAuthenticated])
     def subscriptions(self, request):
         user = request.user
-        authors = User.objects.filter(followers__user=user)
-
-        context = {'request': request}
         recipes_limit = request.query_params.get('recipes_limit')
+        context = {'request': request}
         if recipes_limit and recipes_limit.isdigit():
             context['recipes_limit'] = int(recipes_limit)
+
+        authors = User.objects.filter(
+            followers__user=user
+        ).annotate(
+            recipes_count=Count('recipes')
+        )
 
         page = self.paginate_queryset(authors)
         serializer = SubscriptionSerializer(page, many=True, context=context)
@@ -112,7 +108,6 @@ class UserViewSet(viewsets.ModelViewSet):
 class RecipeViewSet(viewsets.ModelViewSet):
     """Main logic for recipes: CRUD, favorites, cart, download."""
 
-    queryset = Recipe.objects.all()
     permission_classes = [IsAuthorOrReadOnly]
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
@@ -126,55 +121,16 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-
-        if 'ingredients' in data and isinstance(data['ingredients'], str):
-            try:
-                data['ingredients'] = json.loads(data['ingredients'])
-            except json.JSONDecodeError:
-                return Response(
-                    {"ingredients": ["Invalid format"]},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        if 'tags' in data and isinstance(data['tags'], str):
-            try:
-                data['tags'] = json.loads(data['tags'])
-            except json.JSONDecodeError:
-                return Response(
-                    {"tags": ["Invalid format"]},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-
-        read_serializer = RecipeReadSerializer(serializer.instance,
-                                               context={'request': request})
-        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
-
-    def retrieve(self, request, *args, **kwargs):
-        try:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-        except Http404:
-            return Response(
-                {"detail": "Recipe not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
     def get_queryset(self):
-        queryset = super().get_queryset()
-
         author_id = self.request.query_params.get('author')
         tags = self.request.query_params.getlist('tags')
         is_favorited = self.request.query_params.get('is_favorited')
         is_in_shopping_cart = self.request.query_params.get(
             'is_in_shopping_cart')
         limit = self.request.query_params.get('limit')
+
+        queryset = Recipe.objects.select_related('author').prefetch_related(
+            'tags', 'ingredients', 'recipe_ingredient')
 
         if author_id:
             queryset = queryset.filter(author__id=author_id)
@@ -193,6 +149,27 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         return queryset
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        read_serializer = RecipeReadSerializer(
+            serializer.instance, context={'request': request})
+        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        read_serializer = RecipeReadSerializer(
+            serializer.instance, context={'request': request})
+        return Response(read_serializer.data)
+
     @action(detail=True, methods=['post', 'delete'],
             permission_classes=[permissions.IsAuthenticated])
     def favorite(self, request, id=None):
@@ -209,15 +186,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
             serializer = RecipeShortSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        if request.method == 'DELETE':
-            favorite = Favorite.objects.filter(user=user, recipe=recipe)
-            if not favorite.exists():
-                return Response(
-                    {'error': 'Not in favorites.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            favorite.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        deleted, _ = Favorite.objects.filter(user=user, recipe=recipe).delete()
+        if deleted == 0:
+            return Response(
+                {'error': 'Not in favorites.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post', 'delete'],
             permission_classes=[permissions.IsAuthenticated],
@@ -227,23 +202,21 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
 
         if request.method == 'POST':
-            if Favorite.objects.filter(user=request.user,
-                                       recipe=recipe).exists():
+            if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
                 return Response(
-                    {"errors": "Already in favorites."},
+                    {"errors": "Already in shopping cart."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            Favorite.objects.create(user=request.user, recipe=recipe)
+            ShoppingCart.objects.create(user=user, recipe=recipe)
             serializer = RecipeShortSerializer(recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        item = ShoppingCart.objects.filter(user=user, recipe=recipe)
-        if not item.exists():
+        deleted, _ = ShoppingCart.objects.filter(user=user, recipe=recipe).delete()
+        if deleted == 0:
             return Response(
                 {'errors': 'Not in shopping cart.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['get'],
@@ -260,6 +233,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
             .order_by('name')
         )
 
+        content = self._generate_shopping_list_content(ingredients)
+        response = HttpResponse(content, content_type='text/plain')
+        response['Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
+        return response
+
+    def _generate_shopping_list_content(self, ingredients):
         content = "Shopping List:\n\n"
         for i, item in enumerate(ingredients, 1):
             content += (
@@ -267,47 +246,13 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 f"({item['unit']}) - "
                 f"{item['total_amount']}\n"
             )
-        response = HttpResponse(content, content_type='text/plain')
-        response[
-            'Content-Disposition'] = 'attachment; filename="shopping_list.txt"'
-        return response
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = self.get_object()
-
-        data = request.data.copy()
-        if 'ingredients' in data and isinstance(data['ingredients'], str):
-            try:
-                data['ingredients'] = json.loads(data['ingredients'])
-            except json.JSONDecodeError:
-                return Response(
-                    {"ingredients": ["Invalid format"]},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        if 'tags' in data and isinstance(data['tags'], str):
-            try:
-                data['tags'] = json.loads(data['tags'])
-            except json.JSONDecodeError:
-                return Response(
-                    {"tags": ["Invalid format"]},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-        serializer = self.get_serializer(instance, data=data, partial=partial)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-
-        read_serializer = RecipeReadSerializer(
-            serializer.instance, context={'request': request})
-        return Response(read_serializer.data)
+        return content
 
     @action(detail=True, methods=['get'], url_path='get-link')
     def get_link(self, request, id=None):
         recipe = self.get_object()
         return Response({
-            'short-link': f'/api/recipes/{recipe.id}/download/'
+            'short-link': f'/api/recipes/{recipe.id}/shopping_cart/'
         })
 
 
@@ -363,7 +308,6 @@ class AvatarUpdateView(APIView):
         user = request.user
         if user.avatar:
             user.avatar.delete()
-            user.avatar = None
             user.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(

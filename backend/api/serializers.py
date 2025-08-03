@@ -42,10 +42,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
         validators=[validate_password]
     )
 
-    email = serializers.EmailField(max_length=254, required=True)
-    first_name = serializers.CharField(max_length=150, required=True)
-    last_name = serializers.CharField(max_length=150, required=True)
-
     class Meta:
         model = User
         fields = (
@@ -63,20 +59,6 @@ class UserCreateSerializer(serializers.ModelSerializer):
                 'The username "me" is not allowed.'
             )
         return value
-
-    def validate(self, data):
-        username = data.get('username')
-        email = data.get('email')
-
-        if User.objects.filter(username=username).exists():
-            raise serializers.ValidationError(
-                {'username': 'Username already exists.'})
-
-        if User.objects.filter(email=email).exists():
-            raise serializers.ValidationError(
-                {'email': 'Email already exists.'})
-
-        return data
 
     def create(self, validated_data):
         password = validated_data.pop('password')
@@ -119,7 +101,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     is_subscribed = serializers.SerializerMethodField()
     avatar = serializers.ImageField(read_only=True)
     recipes = serializers.SerializerMethodField()
-    recipes_count = serializers.SerializerMethodField()
+    recipes_count = serializers.IntegerField(read_only=True, default=0)
 
     class Meta:
         model = User
@@ -147,6 +129,14 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
     def get_recipes_count(self, obj):
         return obj.recipes.count()
+
+    def validate(self, data):
+        user = self.context['request'].user
+        author = self.instance or self.context['author']
+        if user == author:
+            raise serializers.ValidationError(
+                "You cannot subscribe to yourself.")
+        return data
 
 
 class TagSerializer(serializers.ModelSerializer):
@@ -189,7 +179,6 @@ class RecipeReadSerializer(serializers.ModelSerializer):
         return ""
 
     def get_ingredients(self, obj):
-        recipe_ingredients = RecipeIngredient.objects.filter(recipe=obj)
         return [
             {
                 'id': ri.ingredient.id,
@@ -197,7 +186,7 @@ class RecipeReadSerializer(serializers.ModelSerializer):
                 'measurement_unit': ri.ingredient.measurement_unit,
                 'amount': ri.amount
             }
-            for ri in recipe_ingredients
+            for ri in obj.recipe_ingredient.all()
         ]
 
     def get_is_favorited(self, obj):
@@ -237,20 +226,20 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         seen = set()
         invalid_ids = []
         for item in value:
-            ing_id = item.get('id')
+            ingredient_id = item.get('id')
             amount = item.get('amount')
 
-            if not Ingredient.objects.filter(id=ing_id).exists():
-                invalid_ids.append(ing_id)
+            if not Ingredient.objects.filter(id=ingredient_id).exists():
+                invalid_ids.append(ingredient_id)
 
-            if ing_id in seen:
+            if ingredient_id in seen:
                 raise serializers.ValidationError(
                     "Duplicate ingredients are not allowed.")
-            seen.add(ing_id)
+            seen.add(ingredient_id)
 
             if not isinstance(amount, int) or amount < 1:
                 raise serializers.ValidationError(
-                    f"Amount for ingredient id {ing_id} must be a positive."
+                    f"Amount for ingredient {ingredient_id} must be positive."
                 )
 
         if invalid_ids:
@@ -279,29 +268,27 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             )
 
     def create(self, validated_data):
-        ingredients_data = validated_data.pop('ingredients')
+        ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
         recipe = Recipe.objects.create(**validated_data)
-        recipe.tags.set(tags)
-        self.create_ingredients(recipe, ingredients_data)
+        self.set_ingredients_and_tags(recipe, ingredients, tags)
         return recipe
 
     def update(self, instance, validated_data):
-        ingredients_data = validated_data.pop('ingredients', None)
-        tags = validated_data.pop('tags', None)
+        ingredients = validated_data.pop('ingredients')
+        tags = validated_data.pop('tags')
 
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-
-        if tags is not None:
-            instance.tags.set(tags)
-
-        if ingredients_data is not None:
-            instance.recipe_ingredient.all().delete()
-            self.create_ingredients(instance, ingredients_data)
-
+        instance = super().update(instance, validated_data)
+        self.set_ingredients_and_tags(instance, ingredients, tags)
         return instance
+
+    def set_ingredients_and_tags(self, recipe, ingredients, tags):
+        recipe.tags.set(tags)
+        recipe.recipe_ingredient.all().delete()
+        RecipeIngredient.objects.bulk_create([
+            RecipeIngredient(recipe=recipe, **ingredient_data)
+            for ingredient_data in ingredients
+        ])
 
     def validate_image(self, value):
         if not value:

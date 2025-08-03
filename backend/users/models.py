@@ -2,10 +2,17 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
 
+from users.constants import FIELD_MAX_LENGTH
+
+forbidden_username_validator = RegexValidator(
+    regex=r'^(?!me$).*',
+    message='The username "me" is not allowed.'
+)
+
 
 class User(AbstractUser):
     email = models.EmailField(
-        max_length=254,
+        max_length=FIELD_MAX_LENGTH,
         unique=True,
         verbose_name='Email'
     )
@@ -14,6 +21,7 @@ class User(AbstractUser):
         unique=True,
         verbose_name='User Name',
         validators=[
+            forbidden_username_validator,
             RegexValidator(
                 regex=r'^[\w.@+-]+\Z',
                 message='Use Valid symbols for username.'
@@ -21,15 +29,14 @@ class User(AbstractUser):
         ]
     )
     first_name = models.CharField(
-        max_length=256, verbose_name='First Name'
+        max_length=FIELD_MAX_LENGTH, verbose_name='First Name'
     )
     last_name = models.CharField(
-        max_length=256, verbose_name='Last Name'
+        max_length=FIELD_MAX_LENGTH, verbose_name='Last Name'
     )
     avatar = models.ImageField(
         upload_to='avatars/',
         blank=True,
-        null=True,
         verbose_name='Avatar'
     )
 

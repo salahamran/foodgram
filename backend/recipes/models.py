@@ -48,7 +48,7 @@ class Recipe(models.Model):
                               verbose_name='Image Field')
     text = models.TextField(verbose_name='Recipe Text')
     cooking_time = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(1)],
+        validators=[MinValueValidator(1), MinValueValidator(20)],
         verbose_name='Cooking time'
     )
     tags = models.ManyToManyField(
@@ -85,7 +85,7 @@ class RecipeIngredient(models.Model):
         related_name='ingredients_in_recipes',
         verbose_name='Ingredient'
     )
-    amount = models.PositiveIntegerField(
+    amount = models.PositiveSmallIntegerField(
         validators=[MinValueValidator(1)],
         verbose_name='Amount'
     )
@@ -114,7 +114,6 @@ class Favorite(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        null=True,
         verbose_name='user favorite recipe'
     )
 
@@ -139,7 +138,6 @@ class ShoppingCart(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        null=True,
         verbose_name='Recipe in Cart'
     )
 

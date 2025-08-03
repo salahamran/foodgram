@@ -140,3 +140,7 @@ dmypy.json
 
 static/
 media/
+
+
+users/tests/
+recipes/tests/
