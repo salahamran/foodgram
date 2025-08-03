@@ -252,7 +252,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def get_link(self, request, id=None):
         recipe = self.get_object()
         return Response({
-            'short-link': f'/api/recipes/{recipe.id}/shopping_cart/'
+            'short-link': f'/api/recipes/{recipe.id}/'
         })
 
 
