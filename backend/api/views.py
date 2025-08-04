@@ -69,7 +69,6 @@ class UserViewSet(viewsets.ModelViewSet):
 
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-
     @action(detail=False, methods=['get'],
             permission_classes=[permissions.IsAuthenticated])
     def subscriptions(self, request):
@@ -117,7 +116,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Recipe.objects.select_related('author').prefetch_related(
             'tags', 'ingredients', 'recipe_ingredient'
         )
-
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -215,9 +213,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
         content = 'Shopping List:\n\n'
         for i, item in enumerate(ingredients, 1):
             content += (
-                f'{i}. {item['name']} '
-                f'({item['unit']}) - '
-                f'{item['total_amount']}\n'
+                f'{i}. {item["name"]} '
+                f'({item["unit"]}) - '
+                f'{item["total_amount"]}\n'
             )
         return content
 
