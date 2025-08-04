@@ -36,8 +36,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
         min_length=8,
         allow_blank=False,
         error_messages={
-            'blank": "Password cannot be empty.',
-            'min_length": "Password must be at least 8 characters long.'
+            'blank': 'Password cannot be empty.',
+            'min_length': 'Password must be at least 8 characters long.'
         },
         validators=[validate_password]
     )
