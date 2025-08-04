@@ -75,14 +75,14 @@ class RecipeIngredient(models.Model):
         Recipe,
         on_delete=models.CASCADE,
         null=True,
-        related_name='recipe_ingredient',
+        related_name='recipe_ingredients',
         verbose_name='Recipe using Ingerdients'
     )
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
         null=True,
-        related_name='ingredients_in_recipes',
+        related_name='used_in_recipes',
         verbose_name='Ingredient'
     )
     amount = models.PositiveSmallIntegerField(
@@ -108,13 +108,14 @@ class Favorite(models.Model):
         User,
         on_delete=models.CASCADE,
         verbose_name='User favorites',
-        related_name='favorite'
+        related_name='favorites'
 
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        verbose_name='user favorite recipe'
+        verbose_name='user favorite recipe',
+        related_name='favorited_by'
     )
 
     class Meta:
@@ -133,12 +134,14 @@ class ShoppingCart(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        verbose_name='User Product'
+        verbose_name='User Product',
+        related_name='shopping_cart_items'
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        verbose_name='Recipe in Cart'
+        verbose_name='Recipe in Cart',
+        related_name='in_shopping_carts'
     )
 
     class Meta:

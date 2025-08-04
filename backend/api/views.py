@@ -13,7 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.filters import RecipeFilter
+from api.filters import IngredientFilter, RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import AvatarSerializer
 from api.serializers import IngredientSerializer
@@ -56,24 +56,19 @@ class UserViewSet(viewsets.ModelViewSet):
         if request.method == 'POST':
             if Subscription.objects.filter(user=user, author=author).exists():
                 return Response(
-                    {"errors": "Already subscribed"},
+                    {'errors': 'Already subscribed'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            Subscription.objects.create(user=user, author=author)
-            context = {'request': request}
-            recipes_limit = request.query_params.get('recipes_limit')
-            if recipes_limit and recipes_limit.isdigit():
-                context['recipes_limit'] = int(recipes_limit)
+            context = {'request': request, 'author': author}
             serializer = SubscriptionSerializer(
-                author, context={'request': request, 'author': author})
+                data={}, context=context
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=user, author=author)
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        deleted, _ = Subscription.objects.filter(
-            user=user, author=author).delete()
-        if deleted == 0:
-            return Response({"errors": "Subscription not found"}, status=400)
-        return Response(status=204)
 
     @action(detail=False, methods=['get'],
             permission_classes=[permissions.IsAuthenticated])
@@ -119,32 +114,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user)
 
     def get_queryset(self):
-        author_id = self.request.query_params.get('author')
-        tags = self.request.query_params.getlist('tags')
-        is_favorited = self.request.query_params.get('is_favorited')
-        is_in_shopping_cart = self.request.query_params.get(
-            'is_in_shopping_cart')
-        limit = self.request.query_params.get('limit')
+        return Recipe.objects.select_related('author').prefetch_related(
+            'tags', 'ingredients', 'recipe_ingredient'
+        )
 
-        queryset = Recipe.objects.select_related('author').prefetch_related(
-            'tags', 'ingredients', 'recipe_ingredient')
-
-        if author_id:
-            queryset = queryset.filter(author__id=author_id)
-
-        if tags:
-            queryset = queryset.filter(tags__slug__in=tags).distinct()
-
-        if is_favorited and self.request.user.is_authenticated:
-            queryset = queryset.filter(favorite__user=self.request.user)
-
-        if is_in_shopping_cart and self.request.user.is_authenticated:
-            queryset = queryset.filter(shoppingcart__user=self.request.user)
-
-        if limit and limit.isdigit():
-            queryset = queryset[:int(limit)]
-
-        return queryset
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -202,7 +175,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if request.method == 'POST':
             if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
                 return Response(
-                    {"errors": "Already in shopping cart."},
+                    {'errors': 'Already in shopping cart.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             ShoppingCart.objects.create(user=user, recipe=recipe)
@@ -239,12 +212,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return response
 
     def _generate_shopping_list_content(self, ingredients):
-        content = "Shopping List:\n\n"
+        content = 'Shopping List:\n\n'
         for i, item in enumerate(ingredients, 1):
             content += (
-                f"{i}. {item['name']} "
-                f"({item['unit']}) - "
-                f"{item['total_amount']}\n"
+                f'{i}. {item['name']} '
+                f'({item['unit']}) - '
+                f'{item['total_amount']}\n'
             )
         return content
 
@@ -273,13 +246,8 @@ class IngredientViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = IngredientSerializer
     permission_classes = [permissions.AllowAny]
     pagination_class = None
-
-    def get_queryset(self):
-        queryset = super().get_queryset()
-        name = self.request.query_params.get('name')
-        if name:
-            queryset = queryset.filter(name__istartswith=name)
-        return queryset
+    filter_backends = [DjangoFilterBackend]
+    filterset_class = IngredientFilter
 
 
 class AvatarUpdateView(APIView):
@@ -290,7 +258,7 @@ class AvatarUpdateView(APIView):
     def put(self, request):
         if 'avatar' not in request.data:
             return Response(
-                {"avatar": ["This field is required"]},
+                {'avatar': ['This field is required']},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -308,10 +276,9 @@ class AvatarUpdateView(APIView):
         user = request.user
         if user.avatar:
             user.avatar.delete()
-            user.save()
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(
-            {"error": "No avatar to delete"},
+            {'error': 'No avatar to delete'},
             status=status.HTTP_400_BAD_REQUEST
         )
 

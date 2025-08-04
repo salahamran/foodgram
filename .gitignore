@@ -142,5 +142,5 @@ static/
 media/
 
 
-users/tests/
-recipes/tests/
+**/users/tests/
+**/recipes/tests/

@@ -36,8 +36,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
         min_length=8,
         allow_blank=False,
         error_messages={
-            "blank": "Password cannot be empty.",
-            "min_length": "Password must be at least 8 characters long."
+            'blank": "Password cannot be empty.',
+            'min_length": "Password must be at least 8 characters long.'
         },
         validators=[validate_password]
     )
@@ -84,7 +84,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def validate_username(self, value):
         if value.lower() == 'me':
-            raise serializers.ValidationError("Username 'me' is not allowed")
+            raise serializers.ValidationError('Username "me" is not allowed')
         return value
 
     def get_is_subscribed(self, obj):
@@ -101,7 +101,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     is_subscribed = serializers.SerializerMethodField()
     avatar = serializers.ImageField(read_only=True)
     recipes = serializers.SerializerMethodField()
-    recipes_count = serializers.IntegerField(read_only=True, default=0)
+    recipes_count = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = User
@@ -127,15 +127,12 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         return RecipeShortSerializer(
             recipes, many=True, context={'request': request}).data
 
-    def get_recipes_count(self, obj):
-        return obj.recipes.count()
-
     def validate(self, data):
         user = self.context['request'].user
         author = self.instance or self.context['author']
         if user == author:
             raise serializers.ValidationError(
-                "You cannot subscribe to yourself.")
+                'You cannot subscribe to yourself.')
         return data
 
 
@@ -176,17 +173,17 @@ class RecipeReadSerializer(serializers.ModelSerializer):
     def get_image(self, obj):
         if obj.image:
             return obj.image.url
-        return ""
+        return ''
 
     def get_ingredients(self, obj):
         return [
             {
-                'id': ri.ingredient.id,
-                'name': ri.ingredient.name,
-                'measurement_unit': ri.ingredient.measurement_unit,
-                'amount': ri.amount
+                'id': recipe.ingredient.id,
+                'name': recipe.ingredient.name,
+                'measurement_unit': recipe.ingredient.measurement_unit,
+                'amount': recipe.amount
             }
-            for ri in obj.recipe_ingredient.all()
+            for recipe in obj.recipe_ingredient.all()
         ]
 
     def get_is_favorited(self, obj):
@@ -221,7 +218,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
     def validate_ingredients(self, value):
         if not value:
             raise serializers.ValidationError(
-                "At least one ingredient is required.")
+                'At least one ingredient is required.')
 
         seen = set()
         invalid_ids = []
@@ -234,38 +231,30 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
             if ingredient_id in seen:
                 raise serializers.ValidationError(
-                    "Duplicate ingredients are not allowed.")
+                    'Duplicate ingredients are not allowed.')
             seen.add(ingredient_id)
 
             if not isinstance(amount, int) or amount < 1:
                 raise serializers.ValidationError(
-                    f"Amount for ingredient {ingredient_id} must be positive."
+                    f'Amount for ingredient {ingredient_id} must be positive.'
                 )
 
         if invalid_ids:
             raise serializers.ValidationError(
-                f"Invalid ingredient IDs: {invalid_ids}"
+                f'Invalid ingredient IDs: {invalid_ids}'
             )
 
         return value
 
     def validate_tags(self, value):
         if not value:
-            raise serializers.ValidationError("At least one tag is required.")
+            raise serializers.ValidationError('At least one tag is required.')
 
         if len(value) != len(set(value)):
             raise serializers.ValidationError(
-                "Duplicate tags are not allowed.")
+                'Duplicate tags are not allowed.')
 
         return value
-
-    def create_ingredients(self, recipe, ingredients_data):
-        for item in ingredients_data:
-            RecipeIngredient.objects.create(
-                recipe=recipe,
-                ingredient_id=item['id'],
-                amount=item['amount']
-            )
 
     def create(self, validated_data):
         ingredients = validated_data.pop('ingredients')
@@ -292,7 +281,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def validate_image(self, value):
         if not value:
-            raise serializers.ValidationError("This field may not be blank.")
+            raise serializers.ValidationError('This field may not be blank.')
         return value
 
     def validate(self, data):

@@ -1,8 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Subscription
-from .models import User
+from users.models import Subscription
+from users.models import User
 
 
 @admin.register(User)
