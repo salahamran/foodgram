@@ -13,7 +13,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from api.filters import IngredientFilter, RecipeFilter
+from api.filters import IngredientFilter
+from api.filters import RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import AvatarSerializer
 from api.serializers import IngredientSerializer
