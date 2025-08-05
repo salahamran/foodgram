@@ -20,8 +20,8 @@ from api.serializers import AvatarSerializer
 from api.serializers import FavoriteSerializer
 from api.serializers import IngredientSerializer
 from api.serializers import RecipeReadSerializer
-from api.serializers import ShoppingCartSerializer
 from api.serializers import RecipeWriteSerializer
+from api.serializers import ShoppingCartSerializer
 from api.serializers import SubscriptionSerializer
 from api.serializers import TagSerializer
 from api.serializers import UserCreateSerializer
