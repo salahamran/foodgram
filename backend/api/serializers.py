@@ -9,8 +9,8 @@ from recipes.models import Favorite
 from recipes.models import Ingredient
 from recipes.models import Recipe
 from recipes.models import RecipeIngredient
-from recipes.models import Tag
 from recipes.models import ShoppingCart
+from recipes.models import Tag
 from users.models import Subscription
 from users.models import User
 
@@ -361,7 +361,6 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
         recipe = self.context['recipe']
         ShoppingCart.objects.create(user=user, recipe=recipe)
         return recipe
-
 
 
 class IngredientInRecipeSerializer(serializers.ModelSerializer):
