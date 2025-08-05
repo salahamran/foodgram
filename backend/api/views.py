@@ -31,7 +31,6 @@ from recipes.models import Ingredient
 from recipes.models import Recipe
 from recipes.models import ShoppingCart
 from recipes.models import Tag
-from users.models import Subscription
 from users.models import User
 
 
