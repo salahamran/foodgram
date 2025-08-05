@@ -17,9 +17,10 @@ from api.filters import IngredientFilter
 from api.filters import RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import AvatarSerializer
+from api.serializers import FavoriteSerializer
 from api.serializers import IngredientSerializer
 from api.serializers import RecipeReadSerializer
-from api.serializers import RecipeShortSerializer
+from api.serializers import ShoppingCartSerializer
 from api.serializers import RecipeWriteSerializer
 from api.serializers import SubscriptionSerializer
 from api.serializers import TagSerializer
@@ -55,12 +56,6 @@ class UserViewSet(viewsets.ModelViewSet):
         user = request.user
 
         if request.method == 'POST':
-            if Subscription.objects.filter(user=user, author=author).exists():
-                return Response(
-                    {'errors': 'Already subscribed'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
             context = {'request': request, 'author': author}
             serializer = SubscriptionSerializer(
                 data={}, context=context
@@ -147,13 +142,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
 
         if request.method == 'POST':
-            if Favorite.objects.filter(user=user, recipe=recipe).exists():
-                return Response(
-                    {'error': 'Already favorited.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            Favorite.objects.create(user=user, recipe=recipe)
-            serializer = RecipeShortSerializer(recipe)
+            context = {'request': request, 'recipe': recipe}
+            serializer = FavoriteSerializer(data={}, context=context)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         deleted, _ = Favorite.objects.filter(user=user, recipe=recipe).delete()
@@ -169,20 +161,19 @@ class RecipeViewSet(viewsets.ModelViewSet):
             url_path='shopping_cart', url_name='shopping_cart')
     def shopping_cart(self, request, id=None):
         recipe = get_object_or_404(Recipe, id=id)
-        user = request.user
 
         if request.method == 'POST':
-            if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
-                return Response(
-                    {'errors': 'Already in shopping cart.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            ShoppingCart.objects.create(user=user, recipe=recipe)
-            serializer = RecipeShortSerializer(recipe)
+            context = {'request': request, 'recipe': recipe}
+            serializer = ShoppingCartSerializer(
+                data={}, context=context
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         deleted, _ = ShoppingCart.objects.filter(
-            user=user, recipe=recipe).delete()
+            user=request.user, recipe=recipe).delete()
         if deleted == 0:
             return Response(
                 {'errors': 'Not in shopping cart.'},

@@ -5,10 +5,12 @@ from rest_framework import serializers
 
 from api.utils import get_is_favorited
 from api.utils import get_is_in_shopping_cart
+from recipes.models import Favorite
 from recipes.models import Ingredient
 from recipes.models import Recipe
 from recipes.models import RecipeIngredient
 from recipes.models import Tag
+from recipes.models import ShoppingCart
 from users.models import Subscription
 from users.models import User
 
@@ -130,9 +132,17 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     def validate(self, data):
         user = self.context['request'].user
         author = self.instance or self.context['author']
+
         if user == author:
             raise serializers.ValidationError(
-                'You cannot subscribe to yourself.')
+                'You cannot subscribe to yourself.'
+            )
+
+        if Subscription.objects.filter(user=user, author=author).exists():
+            raise serializers.ValidationError(
+                'Already subscribed.'
+            )
+
         return data
 
 
@@ -312,19 +322,46 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
 
 class FavoriteSerializer(serializers.ModelSerializer):
-    """Serialzer for adding/removing recipes to/from favorites."""
+    """Serializer for adding/removing recipes to/from favorites."""
 
     class Meta:
-        model = Recipe
+        model = Favorite
         fields = ('id', 'name', 'image', 'cooking_time')
+        read_only_fields = fields
+
+    def validate(self, data):
+        user = self.context['request'].user
+        recipe = self.context['recipe']
+        if Favorite.objects.filter(user=user, recipe=recipe).exists():
+            raise serializers.ValidationError('Already favorited.')
+        return data
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        recipe = self.context['recipe']
+        return Favorite.objects.create(user=user, recipe=recipe)
 
 
 class ShoppingCartSerializer(serializers.ModelSerializer):
-    """Serialzer for adding/removing recipes to/from shopping cart."""
+    """Serializer for adding/removing recipes to/from shopping cart."""
 
     class Meta:
         model = Recipe
         fields = ('id', 'name', 'image', 'cooking_time')
+
+    def validate(self, data):
+        user = self.context['request'].user
+        recipe = self.context['recipe']
+        if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
+            raise serializers.ValidationError('Already in shopping cart.')
+        return data
+
+    def create(self, validated_data):
+        user = self.context['request'].user
+        recipe = self.context['recipe']
+        ShoppingCart.objects.create(user=user, recipe=recipe)
+        return recipe
+
 
 
 class IngredientInRecipeSerializer(serializers.ModelSerializer):

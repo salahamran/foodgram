@@ -134,7 +134,8 @@ STATIC_ROOT = BASE_DIR / 'collected_static'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://canvastudio.ru",
-    "https://www.canvastudio.ru",
-]
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = ['https://canvastudio.ru', 'https://www.canvastudio.ru']
+
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
