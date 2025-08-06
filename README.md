@@ -72,3 +72,9 @@ docker compose up --build
 ├── .env
 └── README.md
 ```
+
+### Domain And credentials for testing 
+```bash
+- Domain https://canvastudio.ru/
+- testing email: user@test.com
+- password: usertest
