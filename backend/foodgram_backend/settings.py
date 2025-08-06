@@ -129,7 +129,7 @@ DJOSER = {
 }
 
 STATIC_URL = '/static/'
-STATIC_ROOT = '/backend_static/static'
+STATIC_ROOT = BASE_DIR / 'collected_static'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

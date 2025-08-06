@@ -9,7 +9,6 @@ from recipes.models import Favorite
 from recipes.models import Ingredient
 from recipes.models import Recipe
 from recipes.models import RecipeIngredient
-from recipes.models import ShoppingCart
 from recipes.models import Tag
 from users.models import Subscription
 from users.models import User
@@ -193,7 +192,8 @@ class RecipeReadSerializer(serializers.ModelSerializer):
                 'measurement_unit': recipe.ingredient.measurement_unit,
                 'amount': recipe.amount
             }
-            for recipe in obj.recipe_ingredient.all()
+            for recipe in obj.recipe_ingredients.all()
+            if recipe.ingredient is not None
         ]
 
     def get_is_favorited(self, obj):
@@ -232,6 +232,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
         seen = set()
         invalid_ids = []
+
         for item in value:
             ingredient_id = item.get('id')
             amount = item.get('amount')
@@ -244,10 +245,16 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                     'Duplicate ingredients are not allowed.')
             seen.add(ingredient_id)
 
-            if not isinstance(amount, int) or amount < 1:
+            try:
+                amount = int(amount)
+                if amount < 1:
+                    raise ValueError
+            except (TypeError, ValueError):
                 raise serializers.ValidationError(
                     f'Amount for ingredient {ingredient_id} must be positive.'
                 )
+
+            item['amount'] = amount
 
         if invalid_ids:
             raise serializers.ValidationError(
@@ -255,6 +262,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             )
 
         return value
+
 
     def validate_tags(self, value):
         if not value:
@@ -283,9 +291,11 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 
     def set_ingredients_and_tags(self, recipe, ingredients, tags):
         recipe.tags.set(tags)
-        recipe.recipe_ingredient.all().delete()
+        recipe.recipe_ingredients.all().delete()
         RecipeIngredient.objects.bulk_create([
-            RecipeIngredient(recipe=recipe, **ingredient_data)
+            RecipeIngredient(recipe=recipe, **{
+                k: v for k, v in ingredient_data.items() if k != 'id'
+            })
             for ingredient_data in ingredients
         ])
 

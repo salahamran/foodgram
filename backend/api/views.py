@@ -109,7 +109,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Recipe.objects.select_related('author').prefetch_related(
-            'tags', 'ingredients', 'recipe_ingredient'
+            'tags', 'recipe_ingredients__ingredient'
         )
 
     def create(self, request, *args, **kwargs):
