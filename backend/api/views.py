@@ -17,11 +17,10 @@ from api.filters import IngredientFilter
 from api.filters import RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import AvatarSerializer
-from api.serializers import FavoriteSerializer
 from api.serializers import IngredientSerializer
 from api.serializers import RecipeReadSerializer
+from api.serializers import RecipeShortSerializer
 from api.serializers import RecipeWriteSerializer
-from api.serializers import ShoppingCartSerializer
 from api.serializers import SubscriptionSerializer
 from api.serializers import TagSerializer
 from api.serializers import UserCreateSerializer
@@ -31,6 +30,7 @@ from recipes.models import Ingredient
 from recipes.models import Recipe
 from recipes.models import ShoppingCart
 from recipes.models import Tag
+from users.models import Subscription
 from users.models import User
 
 
@@ -55,13 +55,18 @@ class UserViewSet(viewsets.ModelViewSet):
         user = request.user
 
         if request.method == 'POST':
-            context = {'request': request, 'author': author}
-            serializer = SubscriptionSerializer(
-                data={}, context=context
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save(user=user, author=author)
-
+            if user == author:
+                return Response(
+                    {'errors': 'You cannot subscribe to yourself.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if Subscription.objects.filter(user=user, author=author).exists():
+                return Response(
+                    {'errors': 'Already subscribed.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            Subscription.objects.create(user=user, author=author)
+            serializer = UserSerializer(author, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['get'],
@@ -141,18 +146,23 @@ class RecipeViewSet(viewsets.ModelViewSet):
         user = request.user
 
         if request.method == 'POST':
-            context = {'request': request, 'recipe': recipe}
-            serializer = FavoriteSerializer(data={}, context=context)
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
+            if Favorite.objects.filter(user=user, recipe=recipe).exists():
+                return Response(
+                    {'errors': 'Already favorited.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            Favorite.objects.create(user=user, recipe=recipe)
+            serializer = RecipeShortSerializer(
+                recipe, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        deleted, _ = Favorite.objects.filter(user=user, recipe=recipe).delete()
-        if deleted == 0:
+        favorite = Favorite.objects.filter(user=user, recipe=recipe)
+        if not favorite.exists():
             return Response(
-                {'error': 'Not in favorites.'},
+                {'errors': 'Not in favorites.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        favorite.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post', 'delete'],
@@ -162,13 +172,15 @@ class RecipeViewSet(viewsets.ModelViewSet):
         recipe = get_object_or_404(Recipe, id=id)
 
         if request.method == 'POST':
-            context = {'request': request, 'recipe': recipe}
-            serializer = ShoppingCartSerializer(
-                data={}, context=context
-            )
-            serializer.is_valid(raise_exception=True)
-            serializer.save()
-
+            if ShoppingCart.objects.filter(user=request.user,
+                                           recipe=recipe).exists():
+                return Response(
+                    {"errors": "Already in shopping cart."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            ShoppingCart.objects.create(user=request.user, recipe=recipe)
+            serializer = RecipeShortSerializer(
+                recipe, context={'request': request})
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         deleted, _ = ShoppingCart.objects.filter(
@@ -190,7 +202,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
                 name=F('recipe__ingredients__name'),
                 unit=F('recipe__ingredients__measurement_unit')
             )
-            .annotate(total_amount=Sum('recipe__recipe_ingredient__amount'))
+            .annotate(total_amount=Sum('recipe__recipe_ingredients__amount'))
             .order_by('name')
         )
 

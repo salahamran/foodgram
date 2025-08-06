@@ -293,9 +293,11 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
         recipe.tags.set(tags)
         recipe.recipe_ingredients.all().delete()
         RecipeIngredient.objects.bulk_create([
-            RecipeIngredient(recipe=recipe, **{
-                k: v for k, v in ingredient_data.items() if k != 'id'
-            })
+            RecipeIngredient(
+                recipe=recipe,
+                ingredient=Ingredient.objects.get(id=ingredient_data['id']),
+                amount=ingredient_data['amount']
+            )
             for ingredient_data in ingredients
         ])
 
