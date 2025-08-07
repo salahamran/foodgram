@@ -10,14 +10,16 @@ from recipes.models import Tag
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'slug')
+    list_display = ('name', 'id', 'slug')
+    list_display_links = ('name', 'id')
     search_fields = ('name',)
     ordering = ('name',)
 
 
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'measurement_unit')
+    list_display = ('name', 'id', 'measurement_unit')
+    list_display_links = ('name', 'id')
     search_fields = ('name',)
 
 
@@ -28,10 +30,18 @@ class RecipeIngredientInline(admin.TabularInline):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'author', 'cooking_time')
+    list_display = ('name', 'id', 'author', 'cooking_time')
+    list_display_links = ('name', 'id', 'author')
     search_fields = ('name', 'author__username')
     list_filter = ('tags',)
     inlines = [RecipeIngredientInline]
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.select_related('author').prefetch_related(
+            'tags',
+            'recipe_ingredients__ingredient'
+        )
 
 
 @admin.register(Favorite)

@@ -129,21 +129,30 @@ class SubscriptionSerializer(serializers.ModelSerializer):
         return RecipeShortSerializer(
             recipes, many=True, context={'request': request}).data
 
+
+class SubscriptionCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating/deleting subscriptions."""
+
+    class Meta:
+        model = Subscription
+        fields = ('author',)
+
     def validate(self, data):
         user = self.context['request'].user
-        author = self.instance or self.context['author']
+        author = data['author']
 
         if user == author:
             raise serializers.ValidationError(
                 'You cannot subscribe to yourself.'
             )
-
         if Subscription.objects.filter(user=user, author=author).exists():
             raise serializers.ValidationError(
                 'Already subscribed.'
             )
-
         return data
+
+    def create(self, validated_data):
+        return Subscription.objects.create(**validated_data)
 
 
 class TagSerializer(serializers.ModelSerializer):

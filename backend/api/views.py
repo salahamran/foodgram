@@ -21,6 +21,7 @@ from api.serializers import IngredientSerializer
 from api.serializers import RecipeReadSerializer
 from api.serializers import RecipeShortSerializer
 from api.serializers import RecipeWriteSerializer
+from api.serializers import SubscriptionCreateSerializer
 from api.serializers import SubscriptionSerializer
 from api.serializers import TagSerializer
 from api.serializers import UserCreateSerializer
@@ -55,19 +56,30 @@ class UserViewSet(viewsets.ModelViewSet):
         user = request.user
 
         if request.method == 'POST':
-            if user == author:
-                return Response(
-                    {'errors': 'You cannot subscribe to yourself.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            if Subscription.objects.filter(user=user, author=author).exists():
-                return Response(
-                    {'errors': 'Already subscribed.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            Subscription.objects.create(user=user, author=author)
-            serializer = UserSerializer(author, context={'request': request})
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            serializer = SubscriptionCreateSerializer(
+                data={'author': author.id},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=user)
+
+            # Return author info with the full SubscriptionSerializer
+            output_serializer = SubscriptionSerializer(
+                author, context={'request': request}
+            )
+            return Response(
+                output_serializer.data, status=status.HTTP_201_CREATED)
+
+        # DELETE
+        deleted, _ = Subscription.objects.filter(
+            user=user, author=author
+        ).delete()
+        if deleted == 0:
+            return Response(
+                {'errors': 'Not subscribed.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=['get'],
             permission_classes=[permissions.IsAuthenticated])
@@ -99,7 +111,11 @@ class UserViewSet(viewsets.ModelViewSet):
 class RecipeViewSet(viewsets.ModelViewSet):
     """Main logic for recipes: CRUD, favorites, cart, download."""
 
+    queryset = Recipe.objects.select_related('author').prefetch_related(
+        'tags', 'recipe_ingredients__ingredient'
+    )
     permission_classes = [IsAuthorOrReadOnly]
+    serializer_class = RecipeReadSerializer
     filter_backends = [DjangoFilterBackend]
     filterset_class = RecipeFilter
     lookup_field = 'id'
@@ -112,10 +128,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def get_queryset(self):
-        return Recipe.objects.select_related('author').prefetch_related(
-            'tags', 'recipe_ingredients__ingredient'
-        )
+    # def get_queryset(self):
+    #     return Recipe.objects.select_related('author').prefetch_related(
+    #         'tags', 'recipe_ingredients__ingredient'
+    #     )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
