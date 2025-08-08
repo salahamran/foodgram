@@ -386,7 +386,6 @@ class ShoppingCartSerializer(serializers.ModelSerializer):
         return ShoppingCart.objects.create(**validated_data)
 
 
-
 class IngredientInRecipeSerializer(serializers.ModelSerializer):
     """Serialzer to represent the ingredient.
 
