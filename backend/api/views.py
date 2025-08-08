@@ -17,10 +17,11 @@ from api.filters import IngredientFilter
 from api.filters import RecipeFilter
 from api.permissions import IsAuthorOrReadOnly
 from api.serializers import AvatarSerializer
+from api.serializers import FavoriteSerializer
 from api.serializers import IngredientSerializer
 from api.serializers import RecipeReadSerializer
-from api.serializers import RecipeShortSerializer
 from api.serializers import RecipeWriteSerializer
+from api.serializers import ShoppingCartSerializer
 from api.serializers import SubscriptionCreateSerializer
 from api.serializers import SubscriptionSerializer
 from api.serializers import TagSerializer
@@ -61,22 +62,17 @@ class UserViewSet(viewsets.ModelViewSet):
                 context={'request': request}
             )
             serializer.is_valid(raise_exception=True)
-            serializer.save(user=user)
+            serializer.save(user=user, author=author)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-            # Return author info with the full SubscriptionSerializer
-            output_serializer = SubscriptionSerializer(
-                author, context={'request': request}
-            )
-            return Response(
-                output_serializer.data, status=status.HTTP_201_CREATED)
-
-        # DELETE
-        deleted, _ = Subscription.objects.filter(
-            user=user, author=author
+        deleted_count, _ = Subscription.objects.filter(
+            user=user,
+            author_id=id
         ).delete()
-        if deleted == 0:
+
+        if deleted_count == 0:
             return Response(
-                {'errors': 'Not subscribed.'},
+                {'errors': 'Not subscribed to this user.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -128,11 +124,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    # def get_queryset(self):
-    #     return Recipe.objects.select_related('author').prefetch_related(
-    #         'tags', 'recipe_ingredients__ingredient'
-    #     )
-
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -156,52 +147,53 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return Response(read_serializer.data)
 
     @action(detail=True, methods=['post', 'delete'],
-            permission_classes=[permissions.IsAuthenticated])
+            permission_classes=[permissions.IsAuthenticated],
+            url_path='favorite')
     def favorite(self, request, id=None):
         recipe = get_object_or_404(Recipe, id=id)
-        user = request.user
 
         if request.method == 'POST':
-            if Favorite.objects.filter(user=user, recipe=recipe).exists():
-                return Response(
-                    {'errors': 'Already favorited.'},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            Favorite.objects.create(user=user, recipe=recipe)
-            serializer = RecipeShortSerializer(
-                recipe, context={'request': request})
+            serializer = FavoriteSerializer(
+                data={'recipe': recipe.id},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=request.user, recipe=recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        favorite = Favorite.objects.filter(user=user, recipe=recipe)
-        if not favorite.exists():
+        deleted_count, _ = Favorite.objects.filter(
+            user=request.user,
+            recipe_id=id
+        ).delete()
+
+        if deleted_count == 0:
             return Response(
                 {'errors': 'Not in favorites.'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        favorite.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=['post', 'delete'],
             permission_classes=[permissions.IsAuthenticated],
-            url_path='shopping_cart', url_name='shopping_cart')
+            url_path='shopping_cart')
     def shopping_cart(self, request, id=None):
         recipe = get_object_or_404(Recipe, id=id)
 
         if request.method == 'POST':
-            if ShoppingCart.objects.filter(user=request.user,
-                                           recipe=recipe).exists():
-                return Response(
-                    {"errors": "Already in shopping cart."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-            ShoppingCart.objects.create(user=request.user, recipe=recipe)
-            serializer = RecipeShortSerializer(
-                recipe, context={'request': request})
+            serializer = ShoppingCartSerializer(
+                data={'recipe': recipe.id},
+                context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save(user=request.user, recipe=recipe)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-        deleted, _ = ShoppingCart.objects.filter(
-            user=request.user, recipe=recipe).delete()
-        if deleted == 0:
+        deleted_count, _ = ShoppingCart.objects.filter(
+            user=request.user,
+            recipe_id=id
+        ).delete()
+
+        if deleted_count == 0:
             return Response(
                 {'errors': 'Not in shopping cart.'},
                 status=status.HTTP_400_BAD_REQUEST

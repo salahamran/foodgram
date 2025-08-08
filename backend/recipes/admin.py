@@ -1,11 +1,7 @@
 from django.contrib import admin
 
-from recipes.models import Favorite
-from recipes.models import Ingredient
-from recipes.models import Recipe
-from recipes.models import RecipeIngredient
-from recipes.models import ShoppingCart
-from recipes.models import Tag
+from recipes.models import (Favorite, Ingredient,
+                            Recipe, RecipeIngredient, ShoppingCart, Tag)
 
 
 @admin.register(Tag)
@@ -48,7 +44,29 @@ class RecipeAdmin(admin.ModelAdmin):
 class FavoriteAdmin(admin.ModelAdmin):
     list_display = ('user', 'recipe')
 
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.select_related(
+            'user',
+            'recipe',
+            'recipe__author',
+        ).prefetch_related(
+            'recipe__tags',
+            'recipe__recipe_ingredients__ingredient',
+        )
+
 
 @admin.register(ShoppingCart)
 class ShoppingCartAdmin(admin.ModelAdmin):
     list_display = ('user', 'recipe')
+
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        return queryset.select_related(
+            'user',
+            'recipe',
+            'recipe__author',
+        ).prefetch_related(
+            'recipe__tags',
+            'recipe__recipe_ingredients__ingredient',
+        )

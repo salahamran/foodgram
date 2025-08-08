@@ -345,43 +345,46 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
 class FavoriteSerializer(serializers.ModelSerializer):
     """Serializer for adding/removing recipes to/from favorites."""
 
+    recipe = serializers.PrimaryKeyRelatedField(
+        queryset=Recipe.objects.all()
+    )
+
     class Meta:
         model = Favorite
-        fields = ('id', 'name', 'image', 'cooking_time')
-        read_only_fields = fields
+        fields = ('recipe',)
 
     def validate(self, data):
         user = self.context['request'].user
-        recipe = self.context['recipe']
+        recipe = data['recipe']
         if Favorite.objects.filter(user=user, recipe=recipe).exists():
             raise serializers.ValidationError('Already favorited.')
         return data
 
     def create(self, validated_data):
-        user = self.context['request'].user
-        recipe = self.context['recipe']
-        return Favorite.objects.create(user=user, recipe=recipe)
+        return Favorite.objects.create(**validated_data)
 
 
 class ShoppingCartSerializer(serializers.ModelSerializer):
     """Serializer for adding/removing recipes to/from shopping cart."""
 
+    recipe = serializers.PrimaryKeyRelatedField(
+        queryset=Recipe.objects.all()
+    )
+
     class Meta:
-        model = Recipe
-        fields = ('id', 'name', 'image', 'cooking_time')
+        model = ShoppingCart
+        fields = ('recipe',)
 
     def validate(self, data):
         user = self.context['request'].user
-        recipe = self.context['recipe']
+        recipe = data['recipe']
         if ShoppingCart.objects.filter(user=user, recipe=recipe).exists():
             raise serializers.ValidationError('Already in shopping cart.')
         return data
 
     def create(self, validated_data):
-        user = self.context['request'].user
-        recipe = self.context['recipe']
-        ShoppingCart.objects.create(user=user, recipe=recipe)
-        return recipe
+        return ShoppingCart.objects.create(**validated_data)
+
 
 
 class IngredientInRecipeSerializer(serializers.ModelSerializer):
